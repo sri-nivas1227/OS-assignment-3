@@ -11,40 +11,50 @@ char *readDataFromPipe(int fd);
 void writeDataToPipe(int fd, char *data);
 
 int main(int argc, char *argv[]) {
-  printf("\nEncode process\n");
+  // printf("\nEncode process\n");
+  //  print out argc and all arguments
+  printf("ENCODE\nargc: %d\n", argc);
+  for (int i = 0; i < argc; i++) {
+    printf("argv[%d]: %s\n", i, argv[i]);
+  }
+  printf("\nENCODE\n");
   if (argc < 2) {
     printf("no input provided to encode");
     return 1;
   }
   char *inputData = argv[1];
-  printf("\n%d arguments\n", argc);
-  printf("Input data to encode: %s\n", inputData);
-  // char *dataType = argv[2];
-  char *binaryData;
+  // printf("\n%d arguments\n", argc);
+  // printf("Input data to encode: %s\n", inputData);
+  //  char *dataType = argv[2];
+  // initialize binaryData to empty string
+  char* binaryData = (char *)malloc(1 * sizeof(char));
+  binaryData[0] = '\0';
+  
   if (argc == 3 && strncmp(argv[2], "int", 3) == 0) {
-    printf("data is a integer: %d\n", atoi(inputData));
     int ascii = atoi(inputData);
     char *encodedBinary = encodeInt(ascii);
 
-    binaryData = (char *)malloc((strlen(binaryData) + strlen(encodedBinary)) *
-                                sizeof(char));
-
+    binaryData = (char *)malloc((strlen(encodedBinary)+1) * sizeof(char));
     strncat(binaryData, encodedBinary, strlen(encodedBinary));
+    binaryData[strlen(encodedBinary)] = '\0';
+    printf("Binary data at integer encoding: %s\n", binaryData);
   } else {
-    printf("data is a string\n");
+    // printf("data is a string\n");
 
     for (int i = 0; i < strlen(inputData); i++) {
+      printf("Encoding character: %c\n", inputData[i]);
       char *encodedBinary = encodeChar(inputData[i]);
       if (i == 0) {
-
-        binaryData = (char *)malloc(strlen(encodedBinary) * sizeof(char));
+        binaryData = (char *)malloc((strlen(encodedBinary)+1) * sizeof(char));
       } else {
         binaryData = (char *)realloc(
             binaryData,
-            (strlen(binaryData) + strlen(encodedBinary)) * sizeof(char));
+            (strlen(binaryData) + strlen(encodedBinary)+1) * sizeof(char));
       }
       strncat(binaryData, encodedBinary, strlen(encodedBinary));
     }
+    binaryData[strlen(binaryData)] = '\0';
+    printf("Binary data at string encoding: %s\n", binaryData);
     // write binaryData to a temporary file
   }
 
@@ -52,27 +62,27 @@ int main(int argc, char *argv[]) {
   if (argc == 4 && strncmp(argv[3], "parity", 6) == 0) {
     int parityPipe[2];
     if (pipe(parityPipe) == -1) {
-      printf("pipe for parity failed\n");
+      // printf("pipe for parity failed\n");
       free(binaryData);
       return 1;
     }
     pid_t parityPID = fork();
     if (parityPID < 0) {
-      printf("fork failed\n");
+      // printf("fork failed\n");
       free(binaryData);
       return 1;
     }
     if (parityPID == 0) {
       /*PARITY PROCESS*/
-      printf("\nparity child process\n");
+      // printf("\nparity child process\n");
       close(parityPipe[1]); // close write end of the pipe
       char *dataFromParent = readDataFromPipe(parityPipe[0]);
-      printf("Data received from parent process: %s\n", dataFromParent);
+      // printf("Data received from parent process: %s\n", dataFromParent);
       close(parityPipe[0]); // close read end of the pipe
       execlp("./addParity", "./addParity", dataFromParent, NULL);
     } else if (parityPID > 0) {
       /*PARENT PROCESS*/
-      printf("\nparent process sending data to parity process\n");
+      // printf("\nparent process sending data to parity process\n");
       close(parityPipe[0]); // close read end of the pipe
       writeDataToPipe(parityPipe[1], binaryData);
       close(parityPipe[1]);        // close write end of the pipe
@@ -83,10 +93,10 @@ int main(int argc, char *argv[]) {
     FILE *fptr;
     fptr = fopen("tempBinary.binf", "w");
     if (fptr == NULL) {
-      printf("tempBinary file open failed\n");
+      // printf("tempBinary file open failed\n");
       return 1;
     }
-    printf("writing to tempBinary.binf file\n");
+    printf("writing %s to tempBinary.binf file\n", binaryData);
     fputs(binaryData, fptr);
     fclose(fptr);
     free(binaryData);
@@ -96,10 +106,12 @@ int main(int argc, char *argv[]) {
 
 char *encodeChar(char c) {
   int ascii = (int)c;
+  printf("Encoding character: %c\n", c);
   return encodeInt(ascii);
 }
 
 char *encodeInt(int a) {
+  printf("Encoding integer: %d\n", a);
   static char binary[9]; // 8 bits + null terminator
   for (int i = 7; i >= 0; i--) {
     // ascii & i, is a binary and operation
@@ -127,7 +139,7 @@ char *readDataFromPipe(int fd) {
 }
 
 void writeDataToPipe(int fd, char *data) {
-  printf("Writing data to pipe: %s\n", data);
+  // printf("Writing data to pipe: %s\n", data);
   size_t len = strlen(data);
   ssize_t written = 0;
   while (written < (ssize_t)len) {

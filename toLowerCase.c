@@ -4,7 +4,7 @@
 char* toLowerCase(char *s);
 char* main(int argc, char*argv[]){
     char* s = argv[1];
-    printf("%s\n", toLowerCase(s));
+    //printf("%s\n", toLowerCase(s));
     return toLowerCase(s);
 
 }

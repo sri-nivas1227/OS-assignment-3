@@ -6,25 +6,22 @@
 
 int main(int argc, char *argv[])
 {
+    printf("ADD PARITY\n");
+    
     if (argc < 2)
     {
         printf("No data received from parent process\n");
         return 1;
     }
-    char *binaryFrame = argv[1];
-    printf("Framed Data received from parent process: %s\n", binaryFrame);
-    // get substring binaryFrame[3*8:]
-    char *binaryData = strdup(binaryFrame + 24); // skip first 3 bytes (3*8=24 bits)
+    char *binaryData = argv[1];
     if (!binaryData)
     {
         printf("strdup failed\n");
         return 1;
     }
-    printf("Binary Data extracted from framed data: %s\n", binaryData);
-    // add parity bits to binaryData for each byte (8 bits)
-    // odd parity for each byte, if byte is 01110010, it has even 1s so the new byte will be 11110010
+
     int len = strlen(binaryData);
-    char *parityData = (char *)malloc(len + len / 8 + 1); // +1 for null terminator
+    char *parityData = (char *)malloc((len+1)*sizeof(char));
     if (!parityData)
     {
         printf("malloc failed\n");
@@ -46,18 +43,16 @@ int main(int argc, char *argv[])
         }
         if (count % 2 == 0)
         {
-            // even number of 1s, change first bit to 1
-            byte[0] = '1';
-        }
-        else
-        {
-            // odd number of 1s, change first bit to 0
-            byte[0] = '0';
+            // even number of 1s, change first bit 
+            byte[0] = byte[0] == '1' ? '0' : '1';
         }
         strcat(parityData, byte);
+        printf("Byte processed: %s\n", byte);
+        printf("Current Parity Data: %s\n", parityData);
+
     }
     
-    printf("Parity Data: %s\n", parityData);
+    //printf("Parity Data: %s\n", parityData);
     
     // Write parity data to file
     FILE *fptr;
@@ -68,7 +63,8 @@ int main(int argc, char *argv[])
         free(parityData);
         return 1;
     }
-    printf("Writing parity data to tempBinary.binf file\n");
+    //printf("Writing parity data to tempBinary.binf file\n");
+    printf("writing %s to tempBinary.binf file\n", parityData);
     fputs(parityData, fptr);
     fclose(fptr);
     

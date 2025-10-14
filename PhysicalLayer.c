@@ -7,11 +7,13 @@
 char *readDataFromPipe(int fd);
 void writeDataToPipe(int fd, char *data);
 
-int main(int argc, char *argv[]) {
+int main() {
+  printf("Physical layer program");
+  printf("\n");
   FILE *fptr;
   fptr = fopen("framedData.fram", "r");
   if (fptr == NULL) {
-    printf("framedData file open failed\n");
+    // printf("framedData file open failed\n");
     return 1;
   }
   fseek(fptr, 0, SEEK_END);
@@ -19,14 +21,14 @@ int main(int argc, char *argv[]) {
   fseek(fptr, 0, SEEK_SET); // same as rewind(f);
   char *framedData = (char *)malloc(fsize + 1);
   if (!framedData) {
-    printf("malloc failed\n");
+    // printf("malloc failed\n");
     fclose(fptr);
     return 1;
   }
   fread(framedData, 1, fsize, fptr);
   framedData[fsize] = '\0';
   fclose(fptr);
-  printf("Framed Data read from framedData.fram file: %s\n", framedData);
+  // printf("Framed Data read from framedData.fram file: %s\n", framedData);
 
   char *binaryData;
 
@@ -40,20 +42,18 @@ int main(int argc, char *argv[]) {
 
     pid_t encodePID = fork();
     if (encodePID < 0) {
-      printf("fork failed\n");
+      // printf("fork failed\n");
       free(framedData);
       return 1;
     }
     if (encodePID == 0) {
       /*ENCODE PROCESS*/
-      printf("\nencode header child process\n");
+      // printf("\nencode header child process\n");
       if (counter == 2) {
         execlp("./encode", "./encode", tok, "int", NULL);
-      }
-      else if (counter == 3) {
+      } else if (counter == 3) {
         execlp("./encode", "./encode", tok, "string", "parity", NULL);
-      }
-      else {
+      } else {
 
         execlp("./encode", "./encode", tok, "string", NULL);
       }
@@ -64,6 +64,7 @@ int main(int argc, char *argv[]) {
 
     // read from tempBinary.binf written by encode process
     fptr = fopen("tempBinary.binf", "r");
+
     if (fptr == NULL) {
       printf("tempBinary file open failed\n");
       free(framedData);
@@ -71,22 +72,26 @@ int main(int argc, char *argv[]) {
         free(binaryData);
       return 1;
     }
+
     fseek(fptr, 0, SEEK_END);
     fsize = ftell(fptr);
+    printf("File size at %d iteration: %ld\n", counter, fsize);
     fseek(fptr, 0, SEEK_SET); // same as rewind(f);
 
     if (counter == 1) {
       binaryData = (char *)malloc(fsize + 1);
       if (!binaryData) {
-        printf("malloc failed\n");
+        // printf("malloc failed\n");
         fclose(fptr);
         free(framedData);
         return 1;
       }
       fread(binaryData, 1, fsize, fptr);
       binaryData[fsize] = '\0';
+      printf("Binary data in first iteration: %s\n", binaryData);
     } else {
       size_t old_len = strlen(binaryData);
+      printf("Old length: %zu\n", old_len);
       binaryData = (char *)realloc(binaryData, old_len + fsize + 1);
       if (!binaryData) {
         printf("realloc failed\n");
@@ -96,7 +101,9 @@ int main(int argc, char *argv[]) {
       }
       fread(binaryData + old_len, 1, fsize, fptr);
       binaryData[old_len + fsize] = '\0';
+      printf("Binary data in further iterations: %s\n", binaryData);
     }
+    printf("Binary data: %s\n", binaryData);
     fclose(fptr);
   }
   free(framedData);
@@ -104,30 +111,30 @@ int main(int argc, char *argv[]) {
   // // send binaryData to add parity bits
   // int parityPipe[2];
   // if (pipe(parityPipe) == -1){
-  //     printf("pipe for parity failed\n");
+  //     //printf("pipe for parity failed\n");
   //     free(binaryData);
   //     return 1;
   // }
   // pid_t parityPID = fork();
   // if(parityPID<0){
-  //     printf("fork failed\n");
+  //     //printf("fork failed\n");
   //     free(binaryData);
   //     return 1;
   // }
   // if (parityPID == 0)
   // {
   //     /*PARITY PROCESS*/
-  //     printf("\nparity child process\n");
+  //     //printf("\nparity child process\n");
   //     close(parityPipe[1]); // close write end of the pipe
   //     char *dataFromParent = readDataFromPipe(parityPipe[0]);
-  //     printf("Data received from parent process: %s\n", dataFromParent);
+  //     //printf("Data received from parent process: %s\n", dataFromParent);
   //     close(parityPipe[0]); // close read end of the pipe
   //     execlp("./addParity", "./addParity", dataFromParent, NULL);
   // }
   // else if (parityPID > 0)
   // {
   //     /*PARENT PROCESS*/
-  //     printf("\nparent process sending data to parity process\n");
+  //     //printf("\nparent process sending data to parity process\n");
   //     close(parityPipe[0]); // close read end of the pipe
   //     writeDataToPipe(parityPipe[1], binaryData);
   //     close(parityPipe[1]); // close write end of the pipe
@@ -135,42 +142,42 @@ int main(int argc, char *argv[]) {
   // }
 
   // Read parity data from parityData.binf file
-  fptr = fopen("parityData.binf", "r");
-  if (fptr == NULL) {
-    printf("parityData file open failed\n");
-    free(binaryData);
-    return 1;
-  }
-  fseek(fptr, 0, SEEK_END);
-  long paritySize = ftell(fptr);
-  fseek(fptr, 0, SEEK_SET);
+  // fptr = fopen("tempBinary.binf", "r");
+  // if (fptr == NULL) {
+  //   // printf("parityData file open failed\n");
+  //   free(binaryData);
+  //   return 1;
+  // }
+  // fseek(fptr, 0, SEEK_END);
+  // long paritySize = ftell(fptr);
+  // fseek(fptr, 0, SEEK_SET);
 
-  char *parityData = (char *)malloc(paritySize + 1);
-  if (!parityData) {
-    printf("malloc failed for parity data\n");
-    fclose(fptr);
-    free(binaryData);
-    return 1;
-  }
-  fread(parityData, 1, paritySize, fptr);
-  parityData[paritySize] = '\0';
-  fclose(fptr);
+  // char *parityData = (char *)malloc(paritySize + 1);
+  // if (!parityData) {
+  //   // printf("malloc failed for parity data\n");
+  //   fclose(fptr);
+  //   free(binaryData);
+  //   return 1;
+  // }
+  // fread(parityData, 1, paritySize, fptr);
+  // parityData[paritySize] = '\0';
+  // fclose(fptr);
 
-  printf("Parity data read from parityData.binf: %s\n", parityData);
+  // printf("Parity data read from parityData.binf: %s\n", parityData);
 
   // now write parityData to a file named physicalData.binf
   fptr = fopen("physicalData.binf", "w");
   if (fptr == NULL) {
-    printf("physicaldata file open failed\n");
+    // printf("physicaldata file open failed\n");
     free(binaryData);
-    free(parityData);
+    // free(parityData);
     return 1;
   }
-  fputs(parityData, fptr);
+  fputs(binaryData, fptr);
   fclose(fptr);
   free(binaryData);
-  free(parityData);
-  printf("Parity data written to physicalData.binf file\n");
+  // free(parityData);
+  // printf("Parity data written to physicalData.binf file\n");
   return 0;
 }
 
@@ -190,7 +197,7 @@ char *readDataFromPipe(int fd) {
 }
 
 void writeDataToPipe(int fd, char *data) {
-  printf("Writing data to pipe: %s\n", data);
+  // printf("Writing data to pipe: %s\n", data);
   size_t len = strlen(data);
   ssize_t written = 0;
   while (written < (ssize_t)len) {
@@ -200,3 +207,4 @@ void writeDataToPipe(int fd, char *data) {
     written += n;
   }
 }
+

@@ -18,9 +18,9 @@ void main(){
     fclose(fptr);
     binaryData[fsize] = 0;
     // print out binary data
-    printf("Binary data from file: %s\n", binaryData);
+    //printf("Binary data from file: %s\n", binaryData);
     int dataLength = strlen(binaryData);
-    printf("Length of binary data from file: %d\n", dataLength);
+    //printf("Length of binary data from file: %d\n", dataLength);
     char* dataLengthBinary = encodeInt(dataLength);
     // create framed data
     char* framedData = (char *)malloc(strlen(headerBinary)*2 + strlen(dataLengthBinary) + strlen(binaryData) + 1);
@@ -29,7 +29,7 @@ void main(){
     strncat(framedData, headerBinary, strlen(headerBinary));
     strncat(framedData, dataLengthBinary, strlen(dataLengthBinary));
     strncat(framedData, binaryData, strlen(binaryData));
-    printf("Framed Data: %s\n", framedData);
+    //printf("Framed Data: %s\n", framedData);
     // write framed data to a file
     FILE *fptr2;
     fptr2 = fopen("framedBinaryData.binf","w");
