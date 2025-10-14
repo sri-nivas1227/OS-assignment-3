@@ -4,12 +4,12 @@
 #include <sys/wait.h>
 #include <string.h>
 
-void main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     if (argc < 2)
     {
         printf("No data received from parent process\n");
-        return;
+        return 1;
     }
     char *binaryFrame = argv[1];
     printf("Framed Data received from parent process: %s\n", binaryFrame);
@@ -18,7 +18,7 @@ void main(int argc, char *argv[])
     if (!binaryData)
     {
         printf("strdup failed\n");
-        return;
+        return 1;
     }
     printf("Binary Data extracted from framed data: %s\n", binaryData);
     // add parity bits to binaryData for each byte (8 bits)
@@ -29,7 +29,7 @@ void main(int argc, char *argv[])
     {
         printf("malloc failed\n");
         free(binaryData);
-        return;
+        return 1;
     }
     parityData[0] = '\0'; // initialize to empty string
     for (int i = 0; i < len; i += 8)
@@ -55,5 +55,26 @@ void main(int argc, char *argv[])
             byte[0] = '0';
         }
         strcat(parityData, byte);
-        
+    }
+    
+    printf("Parity Data: %s\n", parityData);
+    
+    // Write parity data to file
+    FILE *fptr;
+    fptr = fopen("tempBinary.binf", "w");
+    if (fptr == NULL)
+    {
+        free(binaryData);
+        free(parityData);
+        return 1;
+    }
+    printf("Writing parity data to tempBinary.binf file\n");
+    fputs(parityData, fptr);
+    fclose(fptr);
+    
+    // Clean up memory
+    free(binaryData);
+    free(parityData);
+    
+    return 0;
 }
