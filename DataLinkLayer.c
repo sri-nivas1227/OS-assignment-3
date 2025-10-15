@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include "encdec.h"
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
