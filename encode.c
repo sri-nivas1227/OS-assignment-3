@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     strncat(binaryData, encodedBinary, strlen(encodedBinary));
     binaryData[strlen(encodedBinary)] = '\0';
     // print binary data to stdout
-    printf("%s\n", binaryData);
+    printf("%s", binaryData);
     fflush(stdout);
     return 0;
   }
@@ -107,13 +107,13 @@ int main(int argc, char *argv[])
       binaryData = readDataFromPipe(parityPipe[0]);
       close(parityPipe[0]);
       waitpid(parityPID, NULL, 0);
-      printf("%s\n", binaryData);
+      printf("%s", binaryData);
       fflush(stdout);
       return 0;
     }
     else
     {
-      printf("%s\n", binaryData);
+      printf("%s", binaryData);
       fflush(stdout);
       return 0;
     }

@@ -39,10 +39,22 @@ int main(int argc, char *argv[])
   // printf("Framed Data read from framedData.fram file: %s\n", framedData);
   if (argc == 3 && strcmp(argv[2], "--convert") == 0)
   {
+    // ignore header and length bytes and check parity of the actual binary data
+    // i.e ignore first 3 bytes = 3*8 = 24 bits
+    char *data = dataToProcess + 24;
+    int dataLen = strlen(data);
+    fprintf(stderr, "Data to convert length: %d and data is: %s\n", dataLen, data);
   }
   else
   {
     char *binaryData;
+    binaryData = (char *)malloc(1);
+    if (!binaryData)
+    {
+      free(dataToProcess);
+      return 1;
+    }
+    binaryData[0] = '\0'; // start with empty string
     int counter = 0;
     for (char *tok = strtok(dataToProcess, "\n"); tok != NULL;
          tok = strtok(NULL, "\n"))
@@ -89,42 +101,25 @@ int main(int argc, char *argv[])
       // parent: read from outpipe[0]
       close(outpipe[1]);
       // read all bytes from encode stdout
-      char buffer[4096];
-      ssize_t r;
-      size_t total = 0;
-      // read in chunks and append to binaryData
-      while ((r = read(outpipe[0], buffer, sizeof(buffer))) > 0)
+      char* buffer = readDataFromPipe(outpipe[0]);
+      // reallocate binaryData to hold new data and append buffer to it
+      size_t oldLen = strlen(binaryData);
+      size_t bufLen = strlen(buffer);
+      char *newBinaryData = realloc(binaryData, oldLen + bufLen + 1);
+      if (!newBinaryData)
       {
-        if (counter == 1 && total == 0)
-        {
-          binaryData = malloc(r + 1);
-          if (!binaryData)
-          {
-            close(outpipe[0]);
-            free(dataToProcess);
-            return 1;
-          }
-          memcpy(binaryData, buffer, r);
-          total = r;
-          binaryData[total] = '\0';
-        }
-        else
-        {
-          size_t old_len = total;
-          char *nb = realloc(binaryData, old_len + r + 1);
-          if (!nb)
-          {
-            close(outpipe[0]);
-            free(dataToProcess);
-            free(binaryData);
-            return 1;
-          }
-          binaryData = nb;
-          memcpy(binaryData + old_len, buffer, r);
-          total = old_len + r;
-          binaryData[total] = '\0';
-        }
+        free(binaryData);
+        free(buffer);
+        close(outpipe[0]);
+        waitpid(encodePID, NULL, 0);
+        free(dataToProcess);
+        return 1;
       }
+      binaryData = newBinaryData;
+      // append buffer to exisiting binaryData
+      strcpy(binaryData + oldLen, buffer);
+      // binaryData[oldLen + bufLen] = '\0';
+      free(buffer);
       close(outpipe[0]);
       waitpid(encodePID, NULL, 0);
       fprintf(stderr, "After token %d, binaryData: %s\n", counter, binaryData);
@@ -140,7 +135,7 @@ int main(int argc, char *argv[])
       free(binaryData);
       return 1;
     }
-    fprintf(stderr, "Final binary data to write to physicalData.binf: %s\n", binaryData);
+    fprintf(stderr, "Final binary data to write to physicalData.binf: %s", binaryData);
     fputs(binaryData, fptr);
     fclose(fptr);
     free(binaryData);

@@ -17,6 +17,11 @@ int main()
         return 2;
     }
     pid_t pid = fork();
+    if (pid < 0)
+    {
+        printf("fork failed\n");
+        return -1;
+    }
     if (pid == 0)
     {
         /*CHILD PROCESS*/
@@ -25,6 +30,27 @@ int main()
         char *inputBinaryFile = readDataFromPipe(pipefd[0]);
         close(pipefd[0]); // close read end of the pipe
         printf("\n Producer/Consumer got %s\n", inputBinaryFile);
+        // call physical layer with --convert to convert the binary file to uppercase version of inputBinaryFile
+        int convertPipe[2];
+        if (pipe(convertPipe) == -1)
+        {
+            fprintf(stderr, "pipe for convert failed\n");
+            return 2;
+        }
+        pid_t convertPID = fork();
+        if (convertPID < 0)
+        {
+            printf("fork failed\n");
+            return -1;
+        }
+        if (convertPID == 0)
+        {
+            /*CONVERT CHILD PROCESS*/
+            close(convertPipe[0]); // close read end of the pipe
+            dup2(convertPipe[1], STDOUT_FILENO);
+            close(convertPipe[1]);
+            execlp("./PhysicalLayer", "./PhysicalLayer", inputBinaryFile, "--convert", NULL);
+        }
     }
     else if (pid > 0)
     {
@@ -114,68 +140,9 @@ int main()
         writeDataToPipe(pipefd[1], physicalDataFile);
         close(pipefd[1]); // close write end of the pipe
         waitpid(pid, NULL, 0);
-        // // After PhysicalLayer writes physicalData.binf, run toUpper to convert data
-        // pid_t upperPID = fork();
-        // if (upperPID < 0)
-        // {
-        //     return -1;
-        // }
-        // if (upperPID == 0)
-        // {
-        //     // child: run toUpper
-        //     execlp("./toUpper", "./toUpper", NULL);
-        // }
-        // // wait for to upper process to finish
-
-        // waitpid(upperPID, NULL, 0);
-
-        // // Now deframe using DataLinkLayer --deframe and capture its stdout by using a pipe
-        // int deframePipe[2];
-        // if (pipe(deframePipe) == -1)
-        // {
-        //     printf("pipe for deframe failed\n");
-        //     return 2;
-        // }
-        // pid_t deframePID = fork();
-        // if (deframePID < 0)
-        // {
-        //     printf("fork failed\n");
-        //     return -1;
-        // }
-        // if (deframePID == 0)
-        // {
-        //     // child: run DataLinkLayer --deframe and write to pipe
-        //     close(deframePipe[0]); // close read end
-        //     // redirect stdout to write end of pipe
-        //     dup2(deframePipe[1], STDOUT_FILENO);
-        //     close(deframePipe[1]);
-        //     execlp("./DataLinkLayer", "./DataLinkLayer", "--deframe", NULL);
-        //     _exit(1);
-        // }
-        // else
-        // {
-        //     // parent: read from pipe and print the uppercase data
-        //     close(deframePipe[1]); // close write end
-        //     char buffer[4096];
-        //     ssize_t n = read(deframePipe[0], buffer, sizeof(buffer) - 1);
-        //     if (n > 0)
-        //     {
-        //         buffer[n] = '\0';
-        //         printf("Final output:\n%s\n", buffer);
-        //     }
-        //     else
-        //     {
-        //         printf("No data received from deframe\n");
-        //     }
-        //     close(deframePipe[0]);
-        //     waitpid(deframePID, NULL, 0);
-        // }
     }
-    else
-    {
-        // printf("fork failed\n");
-        return -1;
-    }
+
+    return 0;
 }
 
 char *readDataFromPipe(int fd)
