@@ -9,6 +9,7 @@ int main(int argc, char *argv[])
 
     if (argc == 3 && strcmp(argv[2], "--deframe") == 0) {
         char *filename = argv[1];
+        fprintf(stderr, "Deframing file: %s\n", filename);
         FILE *fptr = fopen(filename, "r");
         if (fptr == NULL) return 1;
         fseek(fptr, 0, SEEK_END);

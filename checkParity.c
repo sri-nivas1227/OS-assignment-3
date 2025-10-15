@@ -9,55 +9,62 @@
 // exit 0 -> parity OK, exit 1 -> parity error or invalid input
 
 int main(int argc, char *argv[]) {
-    // Read entire stdin into a buffer
-    size_t cap = 4096;
-    size_t len = 0;
-    char *buf = malloc(cap);
-    if (!buf) return 1;
-    ssize_t r;
-    while ((r = read(STDIN_FILENO, buf + len, cap - len)) > 0) {
-        len += r;
-        if (len + 1 >= cap) {
-            cap *= 2;
-            char *nb = realloc(buf, cap);
-            if (!nb) { free(buf); return 1; }
-            buf = nb;
-        }
-    }
-    if (r < 0) { free(buf); return 1; }
-    buf[len] = '\0';
-
-    // Trim trailing newlines if any
-    while (len > 0 && (buf[len-1] == '\n' || buf[len-1] == '\r')) { buf[--len] = '\0'; }
-
-    if (len == 0) {
-        fprintf(stderr, "checkParity: no input on stdin\n");
-        free(buf);
+    if(argc != 2) {
+        fprintf(stderr, "Usage: %s <binary_string>\n", argv[0]);
         return 1;
     }
-
-    int blen = (int)len;
-    if (blen % 8 != 0) {
-        fprintf(stderr, "checkParity: length not multiple of 8 (%d)\n", blen);
-        free(buf);
+    char *binaryDataFile = argv[1];
+    FILE *fptr = fopen(binaryDataFile, "r");
+    if (fptr == NULL) {
+        fprintf(stderr, "File open failed in checkParity\n");
         return 1;
     }
-    for (int i = 0; i < blen; i += 8) {
-        int count = 0;
-        for (int j = 0; j < 8; ++j) {
-            if (buf[i+j] == '1') ++count;
-            else if (buf[i+j] != '0') {
-                fprintf(stderr, "checkParity: invalid char '%c' at pos %d\n", buf[i+j], i+j);
-                free(buf);
+    fseek(fptr, 0, SEEK_END);
+    long fsize = ftell(fptr);
+    fseek(fptr, 0, SEEK_SET); // same as rewind(f);
+    char *binaryData = (char *)malloc(fsize + 1);
+    if (!binaryData) {
+        fclose(fptr);
+        return 1; 
+    }
+    fread(binaryData, 1, fsize, fptr);
+    binaryData[fsize] = '\0';
+    fclose(fptr);
+
+
+
+    int len = strlen(binaryData);
+    if (len % 8 != 0) {
+        fprintf(stderr, "Invalid binary data length, not multiple of 8\n");
+        free(binaryData);
+        return 1;
+    }
+    // check parity for each 8-bit chunk and make first bit to 0 if it's 1 and if no.of 1s is odd
+    for (int i = 0; i < len; i += 8) {
+        int countOnes = 0;
+        for (int j = 0; j < 8; j++) {
+            if (binaryData[i + j] == '1') {
+                countOnes++;
+            } else if (binaryData[i + j] != '0') {
+                fprintf(stderr, "Invalid character in binary data\n");
+                free(binaryData);
                 return 1;
             }
         }
-        if ((count % 2) == 0) {
-            fprintf(stderr, "checkParity: parity error at byte %d (count=%d)\n", i/8, count);
-            free(buf);
+        if (countOnes % 2 == 0) {
+            // parity error
+            fprintf(stderr, "Parity error in byte starting at index %d\n", i);
+            free(binaryData);
             return 1;
+        }else{
+            // parity OK, set first bit to 0 if it's 1
+            if (binaryData[i] == '1') {
+                binaryData[i] = '0';
+            }
         }
     }
-    free(buf);
+    // write the corrected binary data to stdout
+    printf("%s", binaryData);
+    free(binaryData);
     return 0;
 }

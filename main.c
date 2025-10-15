@@ -47,10 +47,56 @@ int main()
         {
             /*CONVERT CHILD PROCESS*/
             close(convertPipe[0]); // close read end of the pipe
-            dup2(convertPipe[1], STDOUT_FILENO);
+            if (dup2(convertPipe[1], STDOUT_FILENO) == -1)
+                _exit(1);
             close(convertPipe[1]);
             execlp("./PhysicalLayer", "./PhysicalLayer", inputBinaryFile, "--convert", NULL);
         }
+        close(convertPipe[1]); // close write end of the pipe
+        char *convertedFrameFile = readDataFromPipe(convertPipe[0]);
+        close(convertPipe[0]);
+        printf("Converted frame file: %s\n", convertedFrameFile);
+        waitpid(convertPID, NULL, 0); // wait for convert process to finish
+
+        // call data link layer with --deframe to deframe the convertedFrameFile
+        int deframePipe[2];
+        if (pipe(deframePipe) == -1)
+        {
+            fprintf(stderr, "pipe for deframe failed\n");
+            return 2;
+        }
+        pid_t deframePID = fork();
+        if (deframePID < 0)
+        {
+            printf("fork failed\n");
+            return -1;
+        }
+        if (deframePID == 0)
+        {
+            /*DEFRAME CHILD PROCESS*/
+            close(deframePipe[0]); // close read end of the pipe
+            dup2(deframePipe[1], STDOUT_FILENO);
+            close(deframePipe[1]);
+            execlp("./DataLinkLayer", "./DataLinkLayer", convertedFrameFile, "--deframe", NULL);
+        }
+        close(deframePipe[1]); // close write end of the pipe
+        char *deframedOutput = readDataFromPipe(deframePipe[0]);
+        close(deframePipe[0]);
+        printf("Deframed output: %s\n", deframedOutput);
+        // write deframedOutput to uppercaseData.outf
+        waitpid(deframePID, NULL, 0); // wait for deframe process to finish
+        FILE *outf = fopen("uppercaseData.outf", "w");
+        if (outf == NULL)
+        {
+            fprintf(stderr, "Error opening output file!\n");
+            return 1;
+        }
+        fprintf(outf, "%s", deframedOutput);
+        fclose(outf);
+        free(deframedOutput);
+        free(convertedFrameFile);
+        free(inputBinaryFile);
+        exit(0);
     }
     else if (pid > 0)
     {

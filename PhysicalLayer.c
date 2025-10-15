@@ -42,8 +42,175 @@ int main(int argc, char *argv[])
     // ignore header and length bytes and check parity of the actual binary data
     // i.e ignore first 3 bytes = 3*8 = 24 bits
     char *data = dataToProcess + 24;
+    char *headerData = (char *)malloc(25);
+    if (!headerData)
+    {
+      free(dataToProcess);
+      return 1;
+    }
+    strncpy(headerData, dataToProcess, 24);
+    headerData[24] = '\0';
     int dataLen = strlen(data);
     fprintf(stderr, "Data to convert length: %d and data is: %s\n", dataLen, data);
+    // write to a temporary file and call checkParity on it
+    char *tempFilename = "tempBinaryData.binf";
+    FILE *tempfptr = fopen(tempFilename, "w");
+    if (tempfptr == NULL)
+    {
+      free(dataToProcess);
+      return 1;
+    }
+    fputs(data, tempfptr);
+    fclose(tempfptr);
+
+    // call checkParity on data
+    int outpipe[2];
+    if (pipe(outpipe) == -1)
+    {
+      free(dataToProcess);
+      return 1;
+    }
+    pid_t checkPID = fork();
+    if (checkPID < 0)
+    {
+      close(outpipe[0]);
+      close(outpipe[1]);
+      free(dataToProcess);
+      return 1;
+    }
+    if (checkPID == 0)
+    {
+      /*Check Parity Child Process*/
+      close(outpipe[0]);
+      if (dup2(outpipe[1], STDOUT_FILENO) == -1)
+        _exit(1);
+      close(outpipe[1]);
+      execlp("./checkParity", "./checkParity", tempFilename, NULL);
+      _exit(1);
+    }
+    // parent: read from outpipe[0] and write it to parityCheckedaInputBinary.binf
+    close(outpipe[1]);
+    char *parityCheckedData = readDataFromPipe(outpipe[0]);
+    close(outpipe[0]);
+    waitpid(checkPID, NULL, 0);
+    free(dataToProcess);
+    // delete temp file
+    remove(tempFilename);
+    // write parityCheckedData to parityCheckedaInputBinary.binf
+    char *outFilename = "parityCheckedaInputBinary.binf";
+    fptr = fopen(outFilename, "w");
+    if (fptr == NULL)
+    {
+      free(parityCheckedData);
+      return 1;
+    }
+    fprintf(stderr, "Final binary data after parity check to write to parityCheckedaInputBinary.binf: %s", parityCheckedData);
+    fputs(parityCheckedData, fptr);
+    fclose(fptr);
+    free(parityCheckedData);
+    // call convert to uppercase and pass the filename parityCheckedaInputBinary.binf to it
+    int convertPipe[2];
+    if (pipe(convertPipe) == -1)
+    {
+      return 1;
+    }
+    pid_t convertPID = fork();
+    if (convertPID < 0)
+    {
+      close(convertPipe[0]);
+      close(convertPipe[1]);
+      return 1;
+    }
+    if (convertPID == 0)
+    {
+      /*Convert Child Process*/
+      close(convertPipe[0]);
+      if (dup2(convertPipe[1], STDOUT_FILENO) == -1)
+        _exit(1);
+      close(convertPipe[1]);
+      execlp("./toUpper", "./toUpper", outFilename, NULL);
+      _exit(1);
+    }
+    // parent: read from convertPipe[0]
+    close(convertPipe[1]);
+    char *upperData = readDataFromPipe(convertPipe[0]);
+    close(convertPipe[0]);
+    waitpid(convertPID, NULL, 0);
+    // delete outFilename file
+    remove(outFilename);
+    // write upperData to uppercaseDeframedBinaryData.done
+    char *finalOutFilename = "uppercaseDeframedBinaryData.done";
+    fptr = fopen(finalOutFilename, "w");
+    if (fptr == NULL)
+    {
+      free(upperData);
+      return 1;
+    }
+    fprintf(stderr, "Final uppercase binary data to write to uppercaseDeframedBinaryData.done: %s", upperData);
+    fputs(upperData, fptr);
+    fclose(fptr);
+    // write headerData + upperData to framedUppercaseBinary.chck file
+    char *framedOutFilename = "framedUppercaseBinary.chck";
+    fptr = fopen(framedOutFilename, "w");
+    if (fptr == NULL)
+    fptr = fopen(framedOutFilename, "w");
+    if (fptr == NULL)
+    {
+      free(upperData);
+      free(headerData);
+      return 1;
+    }
+    fprintf(fptr, "%s%s", headerData, upperData);
+    fclose(fptr);
+    free(upperData);
+    free(headerData);
+
+    // call decode on framedUppercaseBinary.chck with --string option
+    int decodePipe[2];
+    if (pipe(decodePipe) == -1)
+    {
+      free(upperData);
+      return 1;
+    }
+    pid_t decodePID = fork();
+    if (decodePID < 0)
+    {
+      close(decodePipe[0]);
+      close(decodePipe[1]);
+      free(upperData);
+      return 1;
+    }
+    if (decodePID == 0)
+    {
+      /*Decode Child Process*/
+      close(decodePipe[0]);
+      if (dup2(decodePipe[1], STDOUT_FILENO) == -1)
+        _exit(1);
+      close(decodePipe[1]);
+      execlp("./decode", "./decode", framedOutFilename, "--string", NULL);
+      _exit(1);
+    }
+    // parent: read from decodePipe[0]
+    close(decodePipe[1]);
+    char *decodedData = readDataFromPipe(decodePipe[0]);
+    close(decodePipe[0]);
+    waitpid(decodePID, NULL, 0);
+    // write decodedData to finalOutputFrame.fram
+    char *finalDecodeOutFilename = "finalOutputFrame.fram";
+    fptr = fopen(finalDecodeOutFilename, "w");
+    if (fptr == NULL)
+    {
+      free(decodedData);
+      return 1;
+    }
+    fprintf(stderr, "Final decoded data to write to finalOutputFrame.fram: %s", decodedData);
+    fputs(decodedData, fptr);
+    fclose(fptr);
+    free(decodedData);
+    // print the final out  put filename to stdout
+    printf("%s", finalDecodeOutFilename);
+    fflush(stdout);    
+    return 0;
   }
   else
   {
@@ -101,7 +268,7 @@ int main(int argc, char *argv[])
       // parent: read from outpipe[0]
       close(outpipe[1]);
       // read all bytes from encode stdout
-      char* buffer = readDataFromPipe(outpipe[0]);
+      char *buffer = readDataFromPipe(outpipe[0]);
       // reallocate binaryData to hold new data and append buffer to it
       size_t oldLen = strlen(binaryData);
       size_t bufLen = strlen(buffer);

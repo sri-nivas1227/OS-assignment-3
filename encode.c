@@ -107,6 +107,8 @@ int main(int argc, char *argv[])
       binaryData = readDataFromPipe(parityPipe[0]);
       close(parityPipe[0]);
       waitpid(parityPID, NULL, 0);
+      // delete temporary file
+      remove(tempFilename);
       printf("%s", binaryData);
       fflush(stdout);
       return 0;
