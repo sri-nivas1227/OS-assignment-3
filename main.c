@@ -8,8 +8,14 @@
 char *readDataFromPipe(int fd);
 void writeDataToPipe(int fd, char *data);
 
-int main()
+int main(int argc, char *argv[])
 {
+    if(argc != 2)
+    {
+        fprintf(stderr, "please pass a file name");
+        return 1;
+    }
+    char *inputFile = argv[1];
     int pipefd[2];
     if (pipe(pipefd) == -1)
     {
@@ -103,7 +109,7 @@ int main()
         /*PARENT PROCESS*/
         // User's producer process
         FILE *fptr;
-        fptr = fopen("lowercaseData.inpf", "r");
+        fptr = fopen(inputFile, "r");
         if (fptr == NULL)
         {
             fprintf(stderr, "Error opening file!\n");
